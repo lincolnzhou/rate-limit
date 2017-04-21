@@ -2,11 +2,13 @@ package memory
 
 import (
 	"testing"
-	"time"
+	"github.com/lincolnzhou/rate-limit/v4_leaky_bucket/test"
 )
 
-func BenchmarkNew(b *testing.B) {
-	println(1111)
+func TestCreate(t *testing.T) {
+	test.CreateTest(New())(t)
+}
 
-	time.Sleep(time.Second * 10)
+func TestAdd(t *testing.T) {
+	test.AddTest(New())(t)
 }
