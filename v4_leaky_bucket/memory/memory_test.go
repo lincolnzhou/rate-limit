@@ -12,3 +12,7 @@ func TestCreate(t *testing.T) {
 func TestAdd(t *testing.T) {
 	test.AddTest(New())(t)
 }
+
+func TestAddReset(t *testing.T) {
+	test.AddResetTest(New())(t)
+}

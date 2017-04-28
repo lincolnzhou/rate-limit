@@ -5,6 +5,7 @@ import (
 	"math"
 	"testing"
 	"time"
+	"sync"
 )
 
 func CreateTest(s v4_leaky_bucket.Storage) func(*testing.T) {
@@ -50,5 +51,61 @@ func AddTest(s v4_leaky_bucket.Storage) func(*testing.T) {
 		} else if err != v4_leaky_bucket.ErrorFull {
 			t.Fatalf("expected ErrorFull, received %v", err)
 		}
+	}
+}
+
+func AddResetTest(s v4_leaky_bucket.Storage) func(*testing.T) {
+	return func(t *testing.T) {
+		bucket, err := s.Create("test-bucket", 1, time.Millisecond)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if _, err := bucket.Add(1); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(2*time.Millisecond)
+		if state, err := bucket.Add(1); err != nil {
+			t.Fatal(err)
+		} else if (state.Remaining != 0) {
+			t.Fatalf("expected full bucket, got %d", state.Remaining)
+		} else if (state.Reset.Unix() < time.Now().Unix()) {
+			t.Fatal("reset time is in the past")
+		}
+	}
+}
+
+func ThreadSafeAddTest(s v4_leaky_bucket.Storage) func(*testing.T) {
+	return func(t *testing.T) {
+		n := 100
+		k := 50
+
+		bucket, err := s.Create("test-bucket", uint(n), time.Minute)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var wgErrors sync.WaitGroup
+		errors := make(chan error)
+		wgErrors.Add(1)
+		go func() {
+			defer wgErrors.Done()
+			count := 0
+			for err := range errors {
+				count++
+				if err != v4_leaky_bucket.ErrorFull {
+					t.Fatalf("got an error that is not ErrorFull: %s", err)
+				}
+			}
+
+			if count != k {
+				t.Fatalf("got %d errors, expected %d", count, k)
+			}
+		}()
+
+
+
+		wgErrors.Wait()
+		close(errors)
 	}
 }
